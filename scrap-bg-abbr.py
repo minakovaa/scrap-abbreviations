@@ -17,7 +17,7 @@ async def scrap_bg_abbr(event_loop):
     tasks = []
 
     async with aiohttp.ClientSession(loop=event_loop, headers=HEADERS_MAC) as session:
-        for i in range(1, 345, 1):  # 345 pages
+        for i in range(1, 3, 1):  # 345 pages
             pages_list_phrases = f'https://frazite.com/abbrevs-{i}.html'
             tasks.append(
                 asyncio.create_task(
@@ -62,6 +62,9 @@ async def parse_html_resoonses(html_responses, session, event_loop):
     # abbreviations_description - is list of tuples (abbreviation, description)
     abbreviations_description = await asyncio.gather(*tasks)
 
+    # TODO: Split multivalue descriptions using re.
+    # For Example "1. Австрийски авиолинии; 2. Автомобилна администрация; 3. Абсолютна аритмия; 4. Алфа-амилаза"
+
     return dict(abbreviations_description)
 
 
@@ -88,8 +91,13 @@ async def get_abbreviations_description(session, abbreviation, link):
         Return: tp.List[tp.Tuple[str, str]]
                 list of pairs: (abbreviation, description)
     """
-    # TODO: parse abbr page
-    pass
+    html = await fetch_url(session, link)
+
+    soup = BeautifulSoup(html, 'html.parser')
+    first_p_block = soup.find('p')  # Find first <p>
+    description = first_p_block.contents[1]
+
+    return {abbreviation: description}
 
 
 def is_abbreviation(text):
