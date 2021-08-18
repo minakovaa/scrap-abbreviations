@@ -2,8 +2,7 @@ import aiohttp
 import asyncio
 import re
 import typing as tp
-from bs4 import BeautifulSoup
-
+from bs4 import BeautifulSoup, element
 
 HEADERS_MAC = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/537.11 (KHTML, like Gecko)'
                              ' Chrome/23.0.1271.64 Safari/537.11',
@@ -17,7 +16,7 @@ async def scrap_bg_abbr(event_loop):
     tasks = []
 
     async with aiohttp.ClientSession(loop=event_loop, headers=HEADERS_MAC) as session:
-        for i in range(1, 3, 1):  # 345 pages
+        for i in range(1, 345, 1):  # 345 pages
             pages_list_phrases = f'https://frazite.com/abbrevs-{i}.html'
             tasks.append(
                 asyncio.create_task(
@@ -62,10 +61,7 @@ async def parse_html_resoonses(html_responses, session, event_loop):
     # abbreviations_description - is list of tuples (abbreviation, description)
     abbreviations_description = await asyncio.gather(*tasks)
 
-    # TODO: Split multivalue descriptions using re.
-    # For Example "1. Австрийски авиолинии; 2. Автомобилна администрация; 3. Абсолютна аритмия; 4. Алфа-амилаза"
-
-    return dict(abbreviations_description)
+    return {abbr: descr for pair in abbreviations_description for abbr, descr in pair.items()}
 
 
 def find_links_and_get_abbr(html, session, event_loop):
@@ -95,7 +91,11 @@ async def get_abbreviations_description(session, abbreviation, link):
 
     soup = BeautifulSoup(html, 'html.parser')
     first_p_block = soup.find('p')  # Find first <p>
-    description = first_p_block.contents[1]
+    description = ' '.join([content for content in first_p_block.contents[1:]
+                            if type(content) is element.NavigableString])
+
+    description = re.sub(r'[\n\r]', '', description)
+    description = [re.sub(r'(^ *\d+\. )|(^ )', '', descr) for descr in description.split(';')]
 
     return {abbreviation: description}
 
