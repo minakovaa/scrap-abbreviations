@@ -1,22 +1,21 @@
 import aiohttp
 import asyncio
 import re
-import typing as tp
+import os
 from bs4 import BeautifulSoup, element
 
-HEADERS_MAC = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/537.11 (KHTML, like Gecko)'
-                             ' Chrome/23.0.1271.64 Safari/537.11',
-               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+from scrap import is_abbreviation, save_abbreviation_to_json, \
+                  load_abbreviations_from_json, fetch_url, \
+                  HEADERS_MAC
 
-               'Connection': 'keep-alive',
-               }
+NUMBER_OF_FRAZITE_COM_PAGES = 345
 
 
 async def scrap_bg_abbr(event_loop):
     tasks = []
 
     async with aiohttp.ClientSession(loop=event_loop, headers=HEADERS_MAC) as session:
-        for i in range(1, 345, 1):  # 345 pages
+        for i in range(1, NUMBER_OF_FRAZITE_COM_PAGES, 1):
             pages_list_phrases = f'https://frazite.com/abbrevs-{i}.html'
             tasks.append(
                 asyncio.create_task(
@@ -31,16 +30,6 @@ async def scrap_bg_abbr(event_loop):
         abbr_descr = await parse_html_resoonses(html_responses, session, event_loop)
 
     return abbr_descr
-
-
-async def fetch_url(session, url):
-    async with session.get(url) as response:
-        if response.status == 200:
-            html = await response.text()
-            return html
-        else:
-            print(f'Url: {url}, response status: {response.status}')
-            return None
 
 
 async def parse_html_resoonses(html_responses, session, event_loop):
@@ -91,8 +80,13 @@ async def get_abbreviations_description(session, abbreviation, link):
 
     soup = BeautifulSoup(html, 'html.parser')
     first_p_block = soup.find('p')  # Find first <p>
-    description = ' '.join([content for content in first_p_block.contents[1:]
-                            if type(content) is element.NavigableString])
+
+    if first_p_block:
+        description = ' '.join([content for content in first_p_block.contents[1:]
+                                if type(content) is element.NavigableString])
+    else:
+        print(abbreviation)
+        return {}
 
     description = re.sub(r'[\n\r]', '', description)
     description = [re.sub(r'(^ *\d+\. )|(^ )', '', descr) for descr in description.split(';')]
@@ -100,9 +94,20 @@ async def get_abbreviations_description(session, abbreviation, link):
     return {abbreviation: description}
 
 
-def is_abbreviation(text):
-    return text.isupper()
+def main_async_scrap_bg_abbreviations():
+    event_loop = asyncio.get_event_loop()
+    bg_abbr = event_loop.run_until_complete(scrap_bg_abbr(event_loop))
+
+    return bg_abbr
 
 
-event_loop = asyncio.get_event_loop()
-event_loop.run_until_complete(scrap_bg_abbr(event_loop))
+if __name__ == "__main__":
+    bg_json_filename = "abbreviations/bg-abbr.json"
+
+    if os.path.exists(bg_json_filename):
+        bg_abbr = load_abbreviations_from_json(bg_json_filename)
+    else:
+        bg_abbr = main_async_scrap_bg_abbreviations()
+        save_abbreviation_to_json(bg_abbr, 'abbreviations/bg-abbr.json')
+
+    print(f"There are {len(bg_abbr.keys())} Bulgarian abbreviations")

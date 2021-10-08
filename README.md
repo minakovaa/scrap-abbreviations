@@ -1,11 +1,13 @@
-# Scrap abbreviations
+# Scrap abbreviations and map them
 
-Bulgarian abbreviations scrapped from website 
+Scrap abbreviations for two languages and get their translation. 
+
+Source language is Bulgarian. Abbreviations scrapped from website 
 - https://frazite.com/
 
-Russian abbreviations scrapped from one of websites
-- http://www.sokr.ru/
+Target language is Russian. Abbreviations scrapped from one of websites
 - http://netler.ru/slovari/abbreviature.htm
 
+Abbreviations mapped by their embeddings using `sentence_transformers` library.
 
 
